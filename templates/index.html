@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VizyPlant Mobil + Kamera</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background-image: url("/static/background.jpg");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #ffffff;
+            text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.7);
+            text-align: center;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 400px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        input[type="file"],
+        input[type="url"] {
+            margin-bottom: 12px;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            padding: 12px;
+            background-color: #388e3c;
+            color: white;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #2e7d32;
+        }
+
+        #result {
+            margin-top: 20px;
+            white-space: pre-line;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            color: #1b5e20;
+            max-width: 400px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        video, canvas {
+            max-width: 100%;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌿 VizyPlant | Yaprak Sağlığı Tahmini</h1>
+
+    <form id="upload-form" method="POST" enctype="multipart/form-data" action="/tahmin">
+        <label>📁 Görsel Yükleyin:</label>
+        <input type="file" name="image" accept="image/*">
+
+        <label>🌐 Veya Görsel URL'si:</label>
+        <input type="url" name="url" placeholder="https://...">
+
+        <button type="submit">🔍 Tahmin Et</button>
+    </form>
+
+    <hr style="width: 100%; max-width: 400px; margin: 30px 0;">
+
+    <h2>📷 Kamerayla Fotoğraf Çekin</h2>
+    <video id="video" autoplay playsinline width="300"></video>
+    <br>
+    <button onclick="capture()">📸 Fotoğraf Çek</button>
+
+    <form id="camera-form" method="POST" enctype="multipart/form-data" action="/kamera">
+        <input type="hidden" name="img_data" id="img_data">
+        <button type="submit">📤 Gönder ve Tahmin Et</button>
+    </form>
+
+    <canvas id="canvas" style="display:none;"></canvas>
+    <div id="result">{{ result|safe }}</div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const img_data_input = document.getElementById('img_data');
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            });
+
+        function capture() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            const dataURL = canvas.toDataURL('image/jpeg');
+            img_data_input.value = dataURL;
+        }
+    </script>
+</body>
+</html>
