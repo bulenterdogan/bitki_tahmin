@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VizyPlant Mobil + Kamera</title>
+    <title>VizyPlant | Domates Yaprak Analizi</title>
     <style>
         body {
             margin: 0;
@@ -19,10 +19,11 @@
             padding: 20px;
         }
 
-        h1 {
+        h1, h2 {
             color: #ffffff;
             text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.7);
             text-align: center;
+            margin: 10px 0;
         }
 
         form {
@@ -34,26 +35,23 @@
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
         }
 
-        input[type="file"],
-        input[type="url"] {
+        input[type="file"], input[type="url"], button {
             margin-bottom: 12px;
             padding: 10px;
             border-radius: 6px;
             border: 1px solid #ccc;
+            font-size: 15px;
         }
 
         button {
-            padding: 12px;
             background-color: #388e3c;
             color: white;
             font-weight: bold;
-            border: none;
-            border-radius: 6px;
             cursor: pointer;
-            font-size: 16px;
-            margin-top: 10px;
+            border: none;
         }
 
         button:hover {
@@ -74,36 +72,35 @@
         video, canvas {
             max-width: 100%;
             border-radius: 10px;
-            margin-top: 15px;
+            margin-top: 10px;
+            display: none;
         }
     </style>
 </head>
 <body>
-    <h1>🌿 VizyPlant | Yaprak Sağlığı Tahmini</h1>
+    <h1>🌿 VizyPlant | Domates Yaprak Sağlığı</h1>
 
+    <!-- Görsel Yükleme -->
     <form id="upload-form" method="POST" enctype="multipart/form-data" action="/tahmin">
         <label>📁 Görsel Yükleyin:</label>
         <input type="file" name="image" accept="image/*">
-
         <label>🌐 Veya Görsel URL'si:</label>
         <input type="url" name="url" placeholder="https://...">
-
         <button type="submit">🔍 Tahmin Et</button>
     </form>
 
-    <hr style="width: 100%; max-width: 400px; margin: 30px 0;">
-
-    <h2>📷 Kamerayla Fotoğraf Çekin</h2>
-    <video id="video" autoplay playsinline width="300"></video>
-    <br>
-    <button onclick="capture()">📸 Fotoğraf Çek</button>
-
-    <form id="camera-form" method="POST" enctype="multipart/form-data" action="/kamera">
+    <!-- Kamera ile Tahmin -->
+    <form id="camera-form" method="POST" enctype="multipart/form-data" action="/camera">
+        <h2>📷 Kamerayla Fotoğraf Çekin</h2>
+        <video id="video" autoplay playsinline width="250"></video>
+        <canvas id="canvas"></canvas>
         <input type="hidden" name="img_data" id="img_data">
+
+        <button type="button" onclick="startCamera()">📷 Kamerayı Aç</button>
+        <button type="button" onclick="capture()">📸 Fotoğraf Çek</button>
         <button type="submit">📤 Gönder ve Tahmin Et</button>
     </form>
 
-    <canvas id="canvas" style="display:none;"></canvas>
     <div id="result">{{ result|safe }}</div>
 
     <script>
@@ -111,10 +108,17 @@
         const canvas = document.getElementById('canvas');
         const img_data_input = document.getElementById('img_data');
 
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
-                video.srcObject = stream;
-            });
+        function startCamera() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    video.srcObject = stream;
+                    video.style.display = 'block';
+                    canvas.style.display = 'block';
+                })
+                .catch(err => {
+                    alert("Kamera erişimi reddedildi: " + err);
+                });
+        }
 
         function capture() {
             canvas.width = video.videoWidth;

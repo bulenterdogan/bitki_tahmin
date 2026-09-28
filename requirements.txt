@@ -1,7 +1,0 @@
-flask
-torch
-torchvision
-Pillow
-requests
-opencv-python
-pandas

@@ -1,66 +1,177 @@
 import torch
 import torch.nn as nn
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
+from torchvision import datasets, transforms, models
+from torch.utils.data import DataLoader, Subset
+import matplotlib.pyplot as plt
 import os
+import random
+import copy
 
-class BitkiModel(nn.Module):
-    def __init__(self, num_classes):
-        super(BitkiModel, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(3, 16, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
-            nn.Conv2d(16, 32, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2)
-        )
-        self.fc = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(32 * 32 * 32, 64),
-            nn.ReLU(),
-            nn.Linear(64, num_classes)
-        )
 
-    def forward(self, x):
-        x = self.conv(x)
-        return self.fc(x)
+torch.manual_seed(42)
+random.seed(42)
+
+def create_model(num_classes):
+    """ResNet18 tabanlı transfer learning modeli oluşturur."""
+    model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+
+    # İlk katmanları dondur (önceden öğrenilmiş özellikler korunur)
+    for param in model.parameters():
+        param.requires_grad = False
+
+    # Son katmanları aç (fine-tuning için)
+    for param in model.layer4.parameters():
+        param.requires_grad = True
+
+    # Son sınıflandırma katmanını değiştir
+    model.fc = nn.Sequential(
+        nn.Dropout(0.3),
+        nn.Linear(model.fc.in_features, num_classes)
+    )
+
+    return model
 
 if __name__ == "__main__":
-    transform = transforms.Compose([
-        transforms.Resize((128, 128)),
-        transforms.ToTensor()
+    # Eğitim için güçlü veri artırma
+    transform_train = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomVerticalFlip(p=0.2),
+        transforms.RandomRotation(15),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
-    train_data = datasets.ImageFolder("data/train", transform=transform)
-    train_loader = DataLoader(train_data, batch_size=8, shuffle=True)
-    num_classes = len(train_data.classes)
+    # Doğrulama için sadece resize ve normalize
+    transform_val = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
 
-    print("Sınıf etiketleri:", train_data.class_to_idx)
+    # Veri setlerini yükle (aynı klasör, farklı transform)
+    dataset_train = datasets.ImageFolder("data/train", transform=transform_train)
+    dataset_val = datasets.ImageFolder("data/train", transform=transform_val)
+    num_classes = len(dataset_train.classes)
+    print(f"📋 Sınıflar ({num_classes}): {dataset_train.classes}")
 
-    model = BitkiModel(num_classes)
+    # Aynı indekslerle train/val ayır
+    total = len(dataset_train)
+    indices = list(range(total))
+    random.shuffle(indices)
+    train_size = int(0.85 * total)
+
+    train_data = Subset(dataset_train, indices[:train_size])
+    val_data = Subset(dataset_val, indices[train_size:])
+
+    print(f"📊 Eğitim: {len(train_data)} | Doğrulama: {len(val_data)} görsel")
+
+    train_loader = DataLoader(train_data, batch_size=32, shuffle=True)
+    val_loader = DataLoader(val_data, batch_size=32, shuffle=False)
+
+    model = create_model(num_classes)
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=0.001)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=3, factor=0.5)
 
-    for epoch in range(5):
-        running_loss = 0.0
-        correct = 0
-        total = 0
+    train_accuracies = []
+    val_accuracies = []
+    train_losses = []
+    val_losses = []
+
+    # Early stopping ayarları
+    best_val_acc = 0.0
+    best_model_state = None
+    patience = 5
+    patience_counter = 0
+    epochs = 10
+
+    print(f"\n🚀 Eğitim başlıyor ({epochs} epoch, early stopping patience={patience})\n")
+
+    for epoch in range(epochs):
+        model.train()
+        total, correct, train_loss = 0, 0, 0.0
 
         for images, labels in train_loader:
             outputs = model(images)
             loss = criterion(outputs, labels)
-
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-            running_loss += loss.item()
+            train_loss += loss.item()
             _, predicted = torch.max(outputs, 1)
             correct += (predicted == labels).sum().item()
             total += labels.size(0)
 
-        accuracy = 100 * correct / total
-        print(f"Epoch {epoch+1}, Loss: {running_loss:.4f}, Accuracy: {accuracy:.2f}%")
+        train_acc = 100 * correct / total
+        avg_train_loss = train_loss / len(train_loader)
+        train_accuracies.append(train_acc)
+        train_losses.append(avg_train_loss)
 
+        model.eval()
+        val_correct, val_total, val_loss = 0, 0, 0.0
+        with torch.no_grad():
+            for images, labels in val_loader:
+                outputs = model(images)
+                loss = criterion(outputs, labels)
+                val_loss += loss.item()
+                _, predicted = torch.max(outputs, 1)
+                val_correct += (predicted == labels).sum().item()
+                val_total += labels.size(0)
+
+        val_acc = 100 * val_correct / val_total
+        avg_val_loss = val_loss / len(val_loader)
+        val_accuracies.append(val_acc)
+        val_losses.append(avg_val_loss)
+
+        scheduler.step(avg_val_loss)
+
+        current_lr = optimizer.param_groups[0]['lr']
+        print(f"Epoch {epoch+1:02}/{epochs}: "
+              f"Train Acc: {train_acc:.2f}% | Val Acc: {val_acc:.2f}% | "
+              f"Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | "
+              f"LR: {current_lr:.6f}")
+
+        # Early stopping kontrolü
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            best_model_state = copy.deepcopy(model.state_dict())
+            patience_counter = 0
+            print(f"  ✅ En iyi model güncellendi! (Val Acc: {best_val_acc:.2f}%)")
+        else:
+            patience_counter += 1
+            if patience_counter >= patience:
+                print(f"\n⏹️ Early stopping! {patience} epoch boyunca iyileşme olmadı.")
+                break
+
+    # En iyi modeli kaydet
     os.makedirs("model", exist_ok=True)
-    torch.save(model.state_dict(), "model/bitki_model.pth")
-    print("✅ Model başarıyla kaydedildi.")
+    torch.save(best_model_state, "model/plant_model.pth")
+    print(f"\n✅ En iyi model kaydedildi. (Val Acc: {best_val_acc:.2f}%)")
 
+    # Grafik çiz
+    plt.figure(figsize=(10, 5))
+    plt.subplot(1, 2, 1)
+    plt.plot(train_accuracies, label='Train Acc')
+    plt.plot(val_accuracies, label='Val Acc')
+    plt.xlabel("Epoch")
+    plt.ylabel("Accuracy (%)")
+    plt.title("Doğruluk Oranı")
+    plt.legend()
+    plt.grid(True)
 
+    plt.subplot(1, 2, 2)
+    plt.plot(train_losses, label='Train Loss')
+    plt.plot(val_losses, label='Val Loss')
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title("Kayıp Değeri")
+    plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
+    plt.savefig("accuracy_plot.png")
+    plt.show()
