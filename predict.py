@@ -2,25 +2,55 @@ import torch
 from torchvision import transforms
 from PIL import Image
 from train import create_model
+from config import PLANTS
+import os
 
-class_names = [
-    "healthy_tomato",
-    "passalora_fulva_mantarli_domates",
-    "tomato_bacterial_disease",
-    "tomato_early_blight",
-    "tomato_late_blight",
-    "tomato_leaf_mold_fungal",
-    "tomato_mosaic_virus",
-    "tomato_septoria_leaf_spot",
-    "tomato_spider_mite_disease"
-]
+# Her bitki için model lazy-load edilir (ilk istendiğinde yüklenir ve cache'lenir)
+_loaded_models = {}
 
-# Model uygulama başlatılırken bir kere yüklenir
-model = create_model(num_classes=len(class_names))
-model.load_state_dict(torch.load("model/plant_model.pth", map_location="cpu", weights_only=True))
-model.eval()
 
-def predict(image_path):
+def _load_model(plant_key):
+    """Belirtilen bitki için modeli yükler ve cache'ler."""
+    if plant_key in _loaded_models:
+        return _loaded_models[plant_key]
+
+    if plant_key not in PLANTS:
+        raise ValueError(f"Bilinmeyen bitki: {plant_key}. Geçerli bitkiler: {list(PLANTS.keys())}")
+
+    config = PLANTS[plant_key]
+    model_path = config["model_path"]
+
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(
+            f"{config['name']} için model dosyası bulunamadı: {model_path}\n"
+            f"Lütfen önce eğitin: python train.py --plant {plant_key}"
+        )
+
+    checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
+    class_names = checkpoint["class_names"]
+
+    model = create_model(num_classes=len(class_names))
+    model.load_state_dict(checkpoint["model_state_dict"])
+    model.eval()
+
+    _loaded_models[plant_key] = (model, class_names)
+    print(f"✅ {config['name']} modeli yüklendi ({len(class_names)} sınıf)")
+    return model, class_names
+
+
+def predict(image_path, plant_key="domates"):
+    """
+    Belirtilen bitki modeli ile görsel tahmini yapar.
+
+    Args:
+        image_path: Görsel dosya yolu
+        plant_key: Bitki anahtarı (domates, patates, biber)
+
+    Returns:
+        (tahmin_adı, güven_yüzdesi) tuple
+    """
+    model, class_names = _load_model(plant_key)
+
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),

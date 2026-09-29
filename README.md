@@ -1,41 +1,57 @@
-# 🌿 VizyPlant — Domates Yaprak Hastalığı Tahmin Uygulaması
+# 🌿 VizyPlant — Yapay Zeka ile Bitki Sağlığı Analizi
 
-Domates yapraklarındaki hastalıkları yapay zeka ile tespit eden ve tedavi önerileri sunan web uygulaması.
+Bitki yapraklarındaki hastalıkları yapay zeka ile tespit eden ve detaylı tedavi önerileri sunan web uygulaması.
 
-Kullanıcı bir domates yaprağı fotoğrafı yükler, model hastalığı tahmin eder ve Türkçe tedavi tavsiyesi verir.
+Kullanıcı analiz etmek istediği bitkiyi seçer, yaprak fotoğrafı yükler ve model hastalığı tahmin ederek Türkçe tedavi tavsiyesi verir.
 
 ---
 
 ## ✨ Özellikler
 
-- 🔍 **9 farklı sınıf** tanıma (8 hastalık + 1 sağlıklı)
+- 🧠 **3 bitki türü** desteği (Domates, Patates, Biber)
+- 🔍 **14 farklı sınıf** tanıma (11 hastalık + 3 sağlıklı)
 - 📁 **Dosya yükleme** ile tahmin
-- 🌐 **URL yapıştırma** ile tahmin (Google Görseller desteği dahil)
 - 📷 **Kamera** ile canlı fotoğraf çekip tahmin
-- 💊 Her hastalık için **Türkçe tedavi tavsiyeleri**
+- 💊 Her hastalık için **detaylı Türkçe tedavi tavsiyeleri** (belirtiler, ilaçlama dozları, önleme)
+- 🎯 Her bitki için **ayrı özelleştirilmiş model** (daha yüksek doğruluk)
 - 📊 Eğitim sonrası **accuracy/loss grafikleri**
+- 🔌 Yeni bitki eklemek için **modüler yapı**
 
 ---
 
 ## 🧠 Tanınan Hastalıklar
 
+### 🍅 Domates (9 Sınıf)
 | # | Sınıf | Açıklama |
-|---|---|---|
+|---|-------|----------|
 | 1 | `healthy_tomato` | Sağlıklı domates yaprağı |
 | 2 | `passalora_fulva_mantarli_domates` | Passalora fulva mantarı |
-| 3 | `tomato_bacterial_disease` | Bakteriyel hastalık |
-| 4 | `tomato_early_blight` | Erken yanıklık |
-| 5 | `tomato_late_blight` | Geç yanıklık |
+| 3 | `tomato_bacterial_disease` | Bakteriyel benek hastalığı |
+| 4 | `tomato_early_blight` | Erken yanıklık (Alternaria solani) |
+| 5 | `tomato_late_blight` | Geç yanıklık (Phytophthora infestans) |
 | 6 | `tomato_leaf_mold_fungal` | Yaprak küf mantarı |
 | 7 | `tomato_mosaic_virus` | Mozaik virüsü |
 | 8 | `tomato_septoria_leaf_spot` | Septoria yaprak lekesi |
-| 9 | `tomato_spider_mite_disease` | Örümcek akarı hastalığı |
+| 9 | `tomato_spider_mite_disease` | Kırmızı örümcek akarı |
+
+### 🥔 Patates (3 Sınıf)
+| # | Sınıf | Açıklama |
+|---|-------|----------|
+| 1 | `potato_healthy` | Sağlıklı patates yaprağı |
+| 2 | `potato_early_blight` | Erken yanıklık (Alternaria solani) |
+| 3 | `potato_late_blight` | Geç yanıklık (Phytophthora infestans) |
+
+### 🫑 Biber (2 Sınıf)
+| # | Sınıf | Açıklama |
+|---|-------|----------|
+| 1 | `pepper_healthy` | Sağlıklı biber yaprağı |
+| 2 | `pepper_bacterial_spot` | Bakteriyel leke (Xanthomonas) |
 
 ---
 
 ## 🛠️ Kullanılan Teknolojiler
 
-- **Python 3**
+- **Python 3.13+**
 - **PyTorch** — Derin öğrenme (ResNet18 Transfer Learning)
 - **Flask** — Web sunucusu
 - **Pillow** — Görüntü işleme
@@ -47,22 +63,26 @@ Kullanıcı bir domates yaprağı fotoğrafı yükler, model hastalığı tahmin
 ## 📁 Proje Yapısı
 
 ```
-plant_project/
-├── train.py              # Model eğitim scripti (ResNet18)
-├── predict.py             # Tahmin fonksiyonu
+bitki_tahmin/
+├── config.py              # Bitki konfigürasyonları (isim, ikon, yollar)
+├── train.py               # Model eğitim scripti (bitki bazlı)
+├── predict.py             # Tahmin fonksiyonu (çoklu model desteği)
 ├── app.py                 # Flask web sunucusu
-├── advisor.py             # Hastalık tavsiye sistemi
+├── advisor.py             # Detaylı hastalık tavsiye sistemi
 ├── utils/
 │   └── db.py              # SQLite veritabanı yardımcısı
 ├── templates/
-│   └── index.html         # Web arayüzü
+│   └── index.html         # Web arayüzü (bitki seçim kartları)
 ├── static/
 │   └── background.jpg     # Arka plan görseli
 ├── model/
-│   └── plant_model.pth    # Eğitilmiş model ağırlıkları
-├── data/
-│   └── train/             # Eğitim verileri (9 klasör)
-└── accuracy_plot.png      # Eğitim grafikleri
+│   ├── domates_model.pth  # Domates modeli
+│   ├── patates_model.pth  # Patates modeli
+│   └── biber_model.pth    # Biber modeli
+└── data/
+    ├── domates/           # Domates eğitim verileri (9 alt klasör)
+    ├── patates/           # Patates eğitim verileri (3 alt klasör)
+    └── biber/             # Biber eğitim verileri (2 alt klasör)
 ```
 
 ---
@@ -72,32 +92,47 @@ plant_project/
 ### 1. Gereksinimleri Kur
 
 ```bash
-pip install torch torchvision flask pillow matplotlib requests
+pip install torch torchvision flask pillow matplotlib
 ```
 
-### 2. Modeli Eğit
+### 2. Veri Setini Hazırla
+
+[PlantVillage Dataset](https://www.kaggle.com/datasets/abdallahalidev/plantvillage-dataset) adresinden veri setini indirin ve her bitkinin klasörlerini uygun dizine yerleştirin:
+
+```
+data/domates/  → healthy_tomato, tomato_bacterial_disease, ...
+data/patates/  → potato_healthy, potato_early_blight, potato_late_blight
+data/biber/    → pepper_healthy, pepper_bacterial_spot
+```
+
+### 3. Modelleri Eğit
 
 ```bash
-python train.py
+# Her bitki için ayrı model eğitilir:
+python train.py --plant domates
+python train.py --plant patates
+python train.py --plant biber
+
+# Epoch sayısını özelleştirmek için:
+python train.py --plant domates --epochs 20
 ```
 
-Eğitim tamamlandığında `model/plant_model.pth` dosyası oluşur ve accuracy/loss grafikleri gösterilir.
-
-### 3. Uygulamayı Başlat
+### 4. Uygulamayı Başlat
 
 ```bash
 python app.py
 ```
 
-Tarayıcıda [http://127.0.0.1:5000](http://127.0.0.1:5000) adresine git.
+Tarayıcıda [http://127.0.0.1:5000](http://127.0.0.1:5000) adresine gidin.
 
 ---
 
 ## 📸 Kullanım
 
-1. **Dosya Yükleme**: Bir domates yaprağı fotoğrafı seç ve "Tahmin Et" butonuna bas
-2. **URL ile**: Görsel URL'sini yapıştır (Google Görseller linki de çalışır)
-3. **Kamera ile**: "Kamerayı Aç" → "Fotoğraf Çek" → "Gönder ve Tahmin Et"
+1. **Bitki Seçin**: Ana sayfadaki kartlardan (🍅 Domates, 🥔 Patates, 🫑 Biber) birini tıklayın
+2. **Fotoğraf Yükleyin**: Bir yaprak fotoğrafı seçin ve "Tahmin Et" butonuna basın
+3. **Veya Kamera Kullanın**: "Kamerayı Aç" → "Fotoğraf Çek" → "Gönder ve Tahmin Et"
+4. **Sonuçları Görün**: Hastalık tahmini, güven oranı ve detaylı tedavi tavsiyesi ekranda gösterilir
 
 ---
 
@@ -106,9 +141,22 @@ Tarayıcıda [http://127.0.0.1:5000](http://127.0.0.1:5000) adresine git.
 - **ResNet18** (ImageNet ile önceden eğitilmiş — Transfer Learning)
 - **Görsel boyutu**: 224×224 piksel
 - **Optimizer**: AdamW (LR: 0.001)
-- **LR Scheduler**: ReduceLROnPlateau
+- **LR Scheduler**: ReduceLROnPlateau (patience=3)
 - **Early Stopping**: 5 epoch sabır ile
 - **Veri Artırma**: RandomFlip, Rotation, ColorJitter, Affine
+- **Dropout**: 0.3 (son katmanda)
+
+---
+
+## ➕ Yeni Bitki Ekleme
+
+Projeye yeni bir bitki eklemek sadece 3 adım:
+
+1. **`config.py`** → `PLANTS` sözlüğüne yeni bitki tanımını ekleyin
+2. **`advisor.py`** → Yeni hastalıklar için Türkçe tavsiye metinlerini yazın
+3. **Veriyi** `data/<bitki_adi>/` altına koyun ve `python train.py --plant <bitki_adi>` ile eğitin
+
+UI ve tahmin sistemi yeni bitkiyi otomatik algılar — başka kod değişikliğine gerek yoktur.
 
 ---
 
