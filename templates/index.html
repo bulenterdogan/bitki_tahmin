@@ -194,6 +194,29 @@
             display: none;
         }
 
+        /* ── Uyarı Kutusu ── */
+        .warning-box {
+            background: rgba(255, 243, 205, 0.97);
+            border: 1.5px solid #f0ad4e;
+            border-left: 5px solid #e67e22;
+            border-radius: 10px;
+            padding: 12px 16px;
+            max-width: 420px;
+            width: 100%;
+            margin-bottom: 15px;
+            color: #7d4e00;
+            font-size: 0.88rem;
+            line-height: 1.6;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .warning-box strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.95rem;
+            color: #6d3a00;
+        }
+
         /* ── Responsive ── */
         @media (max-width: 480px) {
             .plant-card { padding: 14px 18px; min-width: 90px; }
@@ -214,6 +237,14 @@
             <span class="name">{{ plant.name }}</span>
         </div>
         {% endfor %}
+    </div>
+
+    <!-- Uyarı Kutusu -->
+    <div class="warning-box">
+        <strong>⚠️ Önemli Uyarı</strong>
+        Yukarıdan analiz etmek istediğiniz bitkiyi doğru seçtiğinizden emin olun.
+        Yanlış bitki seçerek görsel yüklemek (örn. Patates seçip biber göndermek)
+        kesinlikle hatalı sonuçlara yol açacaktır. Her bitki modeli yalnızca kendi türünü tanır.
     </div>
 
     <!-- Yükleme Bölümü (başlangıçta gizli) -->
