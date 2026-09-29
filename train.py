@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import os
 import random
 import copy
+import argparse
+from config import PLANTS
 
 
 torch.manual_seed(42)
@@ -32,6 +34,30 @@ def create_model(num_classes):
     return model
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Bitki hastalığı modeli eğitimi")
+    parser.add_argument(
+        "--plant",
+        required=True,
+        choices=list(PLANTS.keys()),
+        help=f"Eğitilecek bitki: {', '.join(PLANTS.keys())}"
+    )
+    parser.add_argument("--epochs", type=int, default=15, help="Epoch sayısı (varsayılan: 15)")
+    args = parser.parse_args()
+
+    plant_config = PLANTS[args.plant]
+    data_path = plant_config["data_path"]
+    model_path = plant_config["model_path"]
+    epochs = args.epochs
+
+    print(f"\n🌱 {plant_config['icon']} {plant_config['name']} modeli eğitiliyor...")
+    print(f"   Veri yolu: {data_path}")
+    print(f"   Model yolu: {model_path}\n")
+
+    if not os.path.isdir(data_path) or len(os.listdir(data_path)) == 0:
+        print(f"❌ Veri klasörü boş veya bulunamadı: {data_path}")
+        print(f"   Lütfen önce PlantVillage'dan {plant_config['name']} verilerini indirip bu klasöre yerleştirin.")
+        exit(1)
+
     # Eğitim için güçlü veri artırma
     transform_train = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -52,8 +78,8 @@ if __name__ == "__main__":
     ])
 
     # Veri setlerini yükle (aynı klasör, farklı transform)
-    dataset_train = datasets.ImageFolder("data/train", transform=transform_train)
-    dataset_val = datasets.ImageFolder("data/train", transform=transform_val)
+    dataset_train = datasets.ImageFolder(data_path, transform=transform_train)
+    dataset_val = datasets.ImageFolder(data_path, transform=transform_val)
     num_classes = len(dataset_train.classes)
     print(f"📋 Sınıflar ({num_classes}): {dataset_train.classes}")
 
@@ -86,7 +112,6 @@ if __name__ == "__main__":
     best_model_state = None
     patience = 5
     patience_counter = 0
-    epochs = 10
 
     print(f"\n🚀 Eğitim başlıyor ({epochs} epoch, early stopping patience={patience})\n")
 
@@ -147,13 +172,18 @@ if __name__ == "__main__":
                 print(f"\n⏹️ Early stopping! {patience} epoch boyunca iyileşme olmadı.")
                 break
 
-    # En iyi modeli kaydet
+    # En iyi modeli sınıf isimleriyle birlikte kaydet
     os.makedirs("model", exist_ok=True)
-    torch.save(best_model_state, "model/plant_model.pth")
-    print(f"\n✅ En iyi model kaydedildi. (Val Acc: {best_val_acc:.2f}%)")
+    torch.save({
+        "model_state_dict": best_model_state,
+        "class_names": dataset_train.classes,
+    }, model_path)
+    print(f"\n✅ {plant_config['name']} modeli kaydedildi: {model_path} (Val Acc: {best_val_acc:.2f}%)")
 
     # Grafik çiz
     plt.figure(figsize=(10, 5))
+    plt.suptitle(f"{plant_config['icon']} {plant_config['name']} Eğitim Sonuçları", fontsize=14)
+
     plt.subplot(1, 2, 1)
     plt.plot(train_accuracies, label='Train Acc')
     plt.plot(val_accuracies, label='Val Acc')
@@ -173,5 +203,7 @@ if __name__ == "__main__":
     plt.grid(True)
 
     plt.tight_layout()
-    plt.savefig("accuracy_plot.png")
+    plot_name = f"accuracy_{args.plant}.png"
+    plt.savefig(plot_name)
     plt.show()
+    print(f"📊 Grafik kaydedildi: {plot_name}")
