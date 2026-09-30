@@ -5,10 +5,6 @@ __pycache__/
 env/
 venv/
 
-# PyTorch Modelleri
-*.pth
-*.pt
-
 # Mobil Uygulama (React Native / Expo)
 vizyplant-mobile/node_modules/
 vizyplant-mobile/.expo/
