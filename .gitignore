@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+env/
+venv/
+
+# PyTorch Modelleri
+*.pth
+*.pt
+
+# Mobil Uygulama (React Native / Expo)
+vizyplant-mobile/node_modules/
+vizyplant-mobile/.expo/
+
+# Geçici dosyalar
+*.jpg
+tempCodeRunnerFile.py
